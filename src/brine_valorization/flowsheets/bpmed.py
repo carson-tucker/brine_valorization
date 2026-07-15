@@ -406,6 +406,44 @@ def solve_model(m, **kwargs):
     return result
 
 
+def _get_product_states(bpmed):
+    if bpmed.config.add_mvc_concentrators:
+        return bpmed.acidate_mvc.get_brine_state(), bpmed.basate_mvc.get_brine_state()
+    elif bpmed.config.add_feed_bleed_for_acid_base:
+        return bpmed.acidate_splitter.bleed_state[0], bpmed.basate_splitter.bleed_state[0]
+    else:
+        last = bpmed.bpmed_stages[-1]
+        return (
+            bpmed.bpmed[last].acidate.properties[0, 1],
+            bpmed.bpmed[last].basate.properties[0, 1],
+        )
+
+
+def report_product_stream_concentrations(m):
+    bpmed = m.fs.bpmed
+    prop_pkg = bpmed.bpmed_property_package
+    ions = [i for i in prop_pkg.solute_set if i != "H2O"]
+    acid_state, base_state = _get_product_states(bpmed)
+
+    def _print_stream(label, state):
+        vol_flow = value(state.flow_vol_phase["Liq"])
+        print(f"\n  {label} ion concentrations:")
+        for ion in ions:
+            mol_flow = value(state.flow_mol_phase_comp["Liq", ion])
+            mw = value(prop_pkg.mw_comp[ion])
+            conc_g_per_L = (mol_flow / vol_flow) * mw
+            print(f"    {ion}: {conc_g_per_L:.6f} g/L")
+
+        charge_balance = sum(
+            value(prop_pkg.charge_comp[ion]) * value(state.flow_mol_phase_comp["Liq", ion])
+            for ion in ions
+        ) / vol_flow  # mol_eq/m3
+        print(f"    Charge balance: {charge_balance * 1e3:.4f} meq/L")
+
+    _print_stream("Acid product (HCl)", acid_state)
+    _print_stream("Base product (NaOH)", base_state)
+
+
 def report_global_state(m):
     data_dict = {"Global results": {}}
     data_dict["Global results"]["DOfs"] = int(degrees_of_freedom(m))
@@ -415,6 +453,7 @@ def report_global_state(m):
     data_dict["Global results"]["LCOW"] = m.fs.costing.LCOW
     data_dict["Global results"]["Product water flow"] = m.fs.total_product_water
     build_report_table("Global results", data_dict)
+    report_product_stream_concentrations(m)
 
 
 def show_fixed_vars(m):
