@@ -38,8 +38,8 @@
 tds_sweep_feed_n_bleed_mvc:
   build_defaults:
     NaCl: 360
-    add_mvc: True 
-    add_feed_bleed_for_acid_base: True
+    add_mvc: False
+    add_feed_bleed_for_acid_base: False
     stages: 3
   build_loop:
     stages:
@@ -49,7 +49,7 @@ tds_sweep_feed_n_bleed_mvc:
     sweep_param_loop:
       nacl:
         type: LinearSample
-        param: fs.nacl_concentraiton
+        param: fs.nacl_concentration
         lower_limit: 360
         upper_limit: 20
         num_samples: 18
